@@ -19,28 +19,29 @@
 
 #include "MainWindow.h"
 #include <QApplication>
-#include <QTextCursor>
-#include <QTextCharFormat>
-#include <QMessageBox>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QProcess>
+#include <QClipboard>
 #include <QDateTime>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
-#include <QSplitter>
+#include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
-#include <QToolBar>
-#include <QStatusBar>
-#include <QIcon>
-#include <QTextBlock>
-#include <QRegularExpression>
+#include <QMessageBox>
+#include <QProcess>
 #include <QProgressBar>
-#include <QFileDialog>
-#include <QClipboard>
+#include <QRegularExpression>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QTextBlock>
+#include <QTextCharFormat>
+#include <QTextCursor>
+#include <QToolBar>
+#include <QVBoxLayout>
 
 /******************************************************************************
  * @brief Constructor.
@@ -821,6 +822,9 @@ void MainWindow::actionToggleOverwriteWarning(bool on)
  ******************************************************************************/
 void MainWindow::actionCompile()
 {
+    QElapsedTimer timer;
+    timer.start();
+
     // Switch to Compare tab and show progress immediately
     tabs->setCurrentWidget(tabCompare);
     comparisonEdit->clear();
@@ -999,8 +1003,15 @@ void MainWindow::actionCompile()
     QString summary = tr("Compile complete.\n\nErrors: %1\nWarnings: %2\n\nSee Compare panel for details.")
                           .arg(errorCount)
                           .arg(warningCount);
-    QMessageBox::information(this, tr("Compile Results"), summary);
-    statusBar()->showMessage(tr("Compile complete."), 3000);
+
+    // Calculate and show elapsed time
+    qint64 ms = timer.elapsed();
+    double seconds = ms / 1000.0;
+    QString timeMsg = tr("Elapsed time: %1 seconds").arg(QString::number(seconds, 'f', 2));
+    QMessageBox::information(this, tr("Compile Results"), summary + "\n\n" + timeMsg);
+    statusBar()->showMessage(tr("Compile complete. ") + timeMsg, 5000);
+    comparisonEdit->appendPlainText(timeMsg);
+
 }
 
 /******************************************************************************

@@ -30,13 +30,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ----------------------------------------------------
 # Detect compiler and set Qt path accordingly
 if(MSVC)
-    #set(CMAKE_PREFIX_PATH "C:/Qt/6.10.0/msvc2019_64") # Sometimes cause find_package not to find.
     add_compile_options(/Zc:__cplusplus)
     add_compile_options(/permissive-)
 endif()
 
 if(MINGW)
-    #set(CMAKE_PREFIX_PATH "C:/Qt/6.10.0/mingw_64")
     add_compile_definitions(QT_DEFAULT_RHI=opengl)
     add_compile_definitions(QT_QPA_PLATFORM=windows)
 endif()
