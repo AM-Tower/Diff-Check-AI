@@ -120,28 +120,17 @@ Recommend using MSVC.
 
 ## Notes-and-next-steps
 
-    Function extraction uses a heuristic regex and brace matching that works well on typical C/C++ method shapes.
-      For advanced parsing (templates, lambdas, macros), expand the regex or integrate a lightweight parser.
+Function extraction uses a heuristic regex and brace matching that works well on typical C/C++ method shapes.
+For advanced parsing (templates, lambdas, macros), expand the regex or integrate a lightweight parser.
 
+The diff algorithm is LCS‑based with a reorder heuristic. 
+It colorizes panes and writes plain text diff into the Comparison pane.
+Saved comparison output uses normal +/‑ markers; reorder is marked with ~.
 
-    The diff algorithm is LCS‑based with a reorder heuristic. It colorizes panes and writes plain text diff into the Comparison pane.
-      Saved comparison output uses normal +/‑ markers; reorder is marked with ~.
-
-    Undo/redo: QTextEdit keeps an undo stack; Qt defaults to sufficiently large history.
-      You can adjust via document()->setMaximumBlockCount or use a QUndoStack for finer control if needed.
-
-    Settings remember overwrite warnings and paths.
-      Temp/Projects tabs are scaffolds to support the workflow you described—copying project files into temp, editing, saving,
-      and clearing—without touching the original project.
-
-    Menu “Compare (Switch Tab)” moves focus to Compare; the toolbar has icons compiled via qrc, so they display correctly on all platforms.
-
-    Testing original/new uses your selected CMake path and builds in a temp build folder inside the temp path.
-      You can extend with capture of compiler errors into the Comparison pane for analysis.
-
+Testing original/new uses your selected CMake path and builds in a temp build folder inside the temp path.
+You can extend with capture of compiler errors into the Comparison pane for analysis.
 
 ## Diff-Check-AI-Project-Structure
-
 
 ```
 /
