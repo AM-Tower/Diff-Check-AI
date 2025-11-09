@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64"
+     xmlns="http://www.w3.org/2000/svg" fill="none" stroke="black" stroke-width="2">
+  <!-- Two panels -->
+  <rect x="8" y="10" width="20" height="44" rx="4" fill="#2196F3" stroke="black"/>
+  <rect x="36" y="10" width="20" height="44" rx="4" fill="#FFC107" stroke="black"/>
+  <!-- Arrows indicating comparison -->
+  <polyline points="30,24 32,32 30,40" fill="none" stroke="black" stroke-width="3"/>
+  <polyline points="34,24 32,32 34,40" fill="none" stroke="black" stroke-width="3"/>
+</svg>

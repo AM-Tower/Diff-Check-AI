@@ -1,0 +1,22 @@
+<!-- DiffCheckAI.qrc -->
+<RCC>
+  <qresource prefix="/icons">
+    <file>icons/app.svg</file>
+    <file>icons/open.svg</file>
+    <file>icons/open_new.svg</file>
+    <file>icons/save.svg</file>
+    <file>icons/compare.svg</file>
+    <file>icons/compile.svg</file>
+    <file>icons/about.svg</file>
+    <file>icons/help.svg</file>
+  </qresource>
+  <!-- Translations -->
+  <qresource prefix="/translations">
+      <file>translations/DiffCheckAI_en.qm</file>
+      <file>translations/DiffCheckAI_es.qm</file>
+  </qresource>
+  <!-- Docs -->
+  <qresource prefix="/docs">
+      <file>README.md</file>
+  </qresource>
+</RCC>

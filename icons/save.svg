@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64"
+     xmlns="http://www.w3.org/2000/svg" fill="none" stroke="black" stroke-width="2">
+  <!-- Floppy disk shape -->
+  <rect x="8" y="8" width="48" height="48" rx="6" fill="#4CAF50" stroke="black"/>
+  <!-- Top label area -->
+  <rect x="16" y="10" width="32" height="16" fill="white" stroke="black"/>
+  <!-- Bottom label lines -->
+  <rect x="16" y="32" width="32" height="18" fill="white" stroke="black"/>
+  <line x1="22" y1="38" x2="42" y2="38" stroke="black"/>
+  <line x1="22" y1="44" x2="42" y2="44" stroke="black"/>
+  <!-- Notch -->
+  <rect x="20" y="10" width="8" height="10" fill="#4CAF50" stroke="black"/>
+</svg>

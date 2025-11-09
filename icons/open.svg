@@ -1,0 +1,9 @@
+<!-- open.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Folder base -->
+  <rect x="4" y="12" width="24" height="12" rx="2" fill="#FFD966" stroke="#B8860B" stroke-width="2"/>
+  <!-- Folder tab -->
+  <rect x="4" y="8" width="12" height="6" rx="1" fill="#FFE599" stroke="#B8860B" stroke-width="2"/>
+  <!-- Folder shadow for depth -->
+  <rect x="4" y="22" width="24" height="2" rx="1" fill="#E6B800" opacity="0.3"/>
+</svg>
