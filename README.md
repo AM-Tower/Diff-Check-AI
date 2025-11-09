@@ -1,26 +1,52 @@
 # Diff-Check-AI
 
+## Status
+* Not working.
+* Compare works.
+* Compile works.
+* Settings works.
+* Backups works.
+
+## How to use
 1. Go to settings and ensure the Temp and Backup folder are correct. 
 Browse to CMakeLists.txt, and hit load. 
 This will delete the Tempfolder ProjectName_Temp, and copy all the CMake file and folder structure.
 This gives you a temp project to work on.
+You only need to load when you made changes in your project, 
+and need to update the temp project.
+This gets backed up under your backup folder in Settings.
 2. Click on Open, and locate the file you want to work on in the Temp folder.
-Paste in the new code you want to compare. 
+Paste or open the file for the new code you want to compare. 
 Click on the menu Compare.
+3. Highlight code you want to transfer from the new side, 
+and move it or copy it to the original file.
+4. Click on Complile, and it will tell you how errors, and warnings.
+5. Save all changes back to original project.
+6. Test project to ensure all the changes were successful.
 
-Command to run app:
+If you are working on this application, use this command to run script,
+that will make text files combining all the source files into one file.
+This is great for history, but you should use git for code history. 
+This is great for working with AI that do not allow the type of file you want to upload.
+
+Linux
  ```
-cd "/mnt/c/Users/jflesher/OneDrive/Documents/WorkSpace/Diff-Check-AI/Qt" \&\& chmod +x src2txt.sh \&\&  dos2unix src2txt.sh \&\&  shellcheck src2txt.sh \&\& ./src2txt.sh --project "Diff-Check-AI"
+cd "/mnt/c/Users/$USER/WorkSpace/DiffCheckAI/Qt" \&\& chmod +x src2txt.sh \&\&  dos2unix src2txt.sh \&\&  shellcheck src2txt.sh \&\& ./src2txt.sh --project "DiffCheckAI"
 ```
-
+Windows
+```
+Set-Location "C:\Users\$USER\WorkSpace\DiffCheckAI\Qt"; .\src2txt.cmd "DiffCheckAI"
+```
 
 Translations update:
 ```
-lupdate.exe ./src -ts translations/Diff-Check-AI\_en.ts translations/Diff-Check-AI\_es.ts
-lrelease.exe translations/Diff-Check-AI\_en.ts translations/Diff-Check-AI\_es.ts
+lupdate.exe ./src -ts translations/DiffCheckAI\_en.ts translations/DiffCheckAI\_es.ts
+lrelease.exe translations/DiffCheckAI\_en.ts translations/DiffCheckAI\_es.ts
 ```
 
 ## Build:
+Windows:
+
 Debug:
 ```
 cmd /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cmake -S . -G "Visual Studio 17 2022" -B build && cmake --build build --config Debug'
@@ -86,17 +112,19 @@ and I’ll extend the scaffolding with drop‑in code.
 │   ├── 📄 about.svg
 │   └── 📄 help.svg
 ├── 📂 translations
-│   ├── 📄 Diff-Check-AI\_en.ts
-│   ├── 📄 Diff-Check-AI\_es.ts
-│   ├── 📄 Diff-Check-AI\_en.qm   # generated
-│   └── 📄 Diff-Check-AI\_es.qm   # generated
+│   ├── 📄 DiffCheckAI\_en.ts
+│   ├── 📄 DiffCheckAI\_es.ts
+│   ├── 📄 DiffCheckAI\_en.qm   # generated
+│   └── 📄 DiffCheckAI\_es.qm   # generated
 ├── 📂 src
 │   ├── 📄 main.cpp
 │   ├── 📄 MainWindow.h
 │   └── 📄 MainWindow.cpp
 │   ├── 📄 CompareEngine.h
 │   └── 📄 CompareEngine.cpp
-├── 📄 Diff-Check-AI.qrc
+├── 📄 DiffCheckAI.qrc
 └── 📄 CMakeLists.txt
 
 ```
+
+## End of README
