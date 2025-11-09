@@ -1,6 +1,6 @@
 #===============================================================================
 # Project: DiffCheckAI
-# Generated on: 08-Nov-25 20:26:47.42
+# Generated on: 08-Nov-25 23:16:39.68
 # OS: Windows on Windows_NT
 # This file is used to show full source code, cmake, read me, and file locates.
 #===============================================================================
@@ -30,31 +30,6 @@
       <file>README.md</file>
   </qresource>
 </RCC>
-
-#-------------------------------------------------------------------------------
-# File: findstring.sh
-#-------------------------------------------------------------------------------
-#!/usr/bin/env bash
-# findstring.sh — recursively grep for a string in all files under the current directory or given path
-
-# Usage: ./findstring.sh "pattern" [directory]
-# Example: ./findstring.sh "dxcompiler" /c/Qt/6.10.0/mingw_64/lib/cmake
-
-if [ -z "$1" ]; then
-  echo "Usage: $0 <pattern> [directory]"
-  exit 1
-fi
-
-PATTERN="$1"
-SEARCH_DIR="${2:-.}"
-
-echo "Searching for '$PATTERN' in $SEARCH_DIR ..."
-echo "--------------------------------------------"
-
-# Use grep recursively (-r), show line numbers (-n), ignore binary files (-I)
-grep -rIn --color=always "$PATTERN" "$SEARCH_DIR" 2>/dev/null || {
-  echo "No matches found for '$PATTERN'"
-}
 
 #-------------------------------------------------------------------------------
 # File: src2txt.sh
@@ -390,6 +365,29 @@ fi
 
 
 #-------------------------------------------------------------------------------
+# File: clean-build.cmd
+#-------------------------------------------------------------------------------
+@echo off
+echo Environment cleaning will delete build folder and CMakeLists.txt.user:
+REM Delete all contents of build folder
+IF EXIST build (
+    rmdir /s /q build
+    mkdir build
+)
+
+REM Delete QtCreator user file
+IF EXIST .qtcreator\CMakeLists.txt.user (
+    del /q .qtcreator\CMakeLists.txt.user
+)
+
+REM Delete QtCreator user file in root folder
+IF EXIST CMakeLists.txt.user (
+    del /q CMakeLists.txt.user
+)
+
+echo Environment cleaned. Ready for fresh build.
+pause
+#-------------------------------------------------------------------------------
 # File: src2txt.cmd
 #-------------------------------------------------------------------------------
 @echo off
@@ -575,7 +573,7 @@ REM End of script src2txt.cmd
 # @brief Build configuration for DiffCheckAI project.
 #
 # @author Jeffrey Scott Flesher with the help of AI: Copilot
-# @version 0.7
+# @version 0.1
 # @date     2025-11-07
 # @section License MIT
 # @section DESCRIPTION
@@ -602,13 +600,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ----------------------------------------------------
 # Detect compiler and set Qt path accordingly
 if(MSVC)
-    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.0/msvc2019_64")
     add_compile_options(/Zc:__cplusplus)
     add_compile_options(/permissive-)
 endif()
 
 if(MINGW)
-    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.0/mingw_64")
     add_compile_definitions(QT_DEFAULT_RHI=opengl)
     add_compile_definitions(QT_QPA_PLATFORM=windows)
 endif()
@@ -728,27 +724,53 @@ include(CPack)
 #-------------------------------------------------------------------------------
 # Diff-Check-AI
 
+## Status
+* Not working.
+* Compare works.
+* Compile works.
+* Settings works.
+* Backups works.
+
+## How to use
 1. Go to settings and ensure the Temp and Backup folder are correct. 
 Browse to CMakeLists.txt, and hit load. 
 This will delete the Tempfolder ProjectName_Temp, and copy all the CMake file and folder structure.
 This gives you a temp project to work on.
+You only need to load when you made changes in your project, 
+and need to update the temp project.
+This gets backed up under your backup folder in Settings.
 2. Click on Open, and locate the file you want to work on in the Temp folder.
-Paste in the new code you want to compare. 
+Paste or open the file for the new code you want to compare. 
 Click on the menu Compare.
+3. Highlight code you want to transfer from the new side, 
+and move it or copy it to the original file.
+4. Click on Complile, and it will tell you how errors, and warnings.
+5. Save all changes back to original project.
+6. Test project to ensure all the changes were successful.
 
-Command to run app:
+If you are working on this application, use this command to run script,
+that will make text files combining all the source files into one file.
+This is great for history, but you should use git for code history. 
+This is great for working with AI that do not allow the type of file you want to upload.
+
+Linux
  ```
-cd "/mnt/c/Users/jflesher/OneDrive/Documents/WorkSpace/Diff-Check-AI/Qt" \&\& chmod +x src2txt.sh \&\&  dos2unix src2txt.sh \&\&  shellcheck src2txt.sh \&\& ./src2txt.sh --project "Diff-Check-AI"
+cd "/mnt/c/Users/$USER/WorkSpace/DiffCheckAI/Qt" \&\& chmod +x src2txt.sh \&\&  dos2unix src2txt.sh \&\&  shellcheck src2txt.sh \&\& ./src2txt.sh --project "DiffCheckAI"
 ```
-
+Windows
+```
+Set-Location "C:\Users\$USER\WorkSpace\DiffCheckAI\Qt"; .\src2txt.cmd "DiffCheckAI"
+```
 
 Translations update:
 ```
-lupdate.exe ./src -ts translations/Diff-Check-AI\_en.ts translations/Diff-Check-AI\_es.ts
-lrelease.exe translations/Diff-Check-AI\_en.ts translations/Diff-Check-AI\_es.ts
+lupdate.exe ./src -ts translations/DiffCheckAI\_en.ts translations/DiffCheckAI\_es.ts
+lrelease.exe translations/DiffCheckAI\_en.ts translations/DiffCheckAI\_es.ts
 ```
 
 ## Build:
+Windows:
+
 Debug:
 ```
 cmd /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cmake -S . -G "Visual Studio 17 2022" -B build && cmake --build build --config Debug'
@@ -814,20 +836,22 @@ and I’ll extend the scaffolding with drop‑in code.
 │   ├── 📄 about.svg
 │   └── 📄 help.svg
 ├── 📂 translations
-│   ├── 📄 Diff-Check-AI\_en.ts
-│   ├── 📄 Diff-Check-AI\_es.ts
-│   ├── 📄 Diff-Check-AI\_en.qm   # generated
-│   └── 📄 Diff-Check-AI\_es.qm   # generated
+│   ├── 📄 DiffCheckAI\_en.ts
+│   ├── 📄 DiffCheckAI\_es.ts
+│   ├── 📄 DiffCheckAI\_en.qm   # generated
+│   └── 📄 DiffCheckAI\_es.qm   # generated
 ├── 📂 src
 │   ├── 📄 main.cpp
 │   ├── 📄 MainWindow.h
 │   └── 📄 MainWindow.cpp
 │   ├── 📄 CompareEngine.h
 │   └── 📄 CompareEngine.cpp
-├── 📄 Diff-Check-AI.qrc
+├── 📄 DiffCheckAI.qrc
 └── 📄 CMakeLists.txt
 
 ```
+
+## End of README
 
 #-------------------------------------------------------------------------------
 # File: src\CompareEngine.cpp
@@ -1082,7 +1106,7 @@ QString CompareEngine::buildSummary(const QMap<QString, FunctionBlock> &orig,
 }
 
 /*************** End of CompareEngine.cpp ************************************/
-SKIP=0
+
 #-------------------------------------------------------------------------------
 # File: src\main.cpp
 #-------------------------------------------------------------------------------
@@ -1121,7 +1145,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // Register resources
-    Q_INIT_RESOURCE(CodeHelpAI);
+    Q_INIT_RESOURCE(DiffCheckAI);
 
     // App icon
     QApplication::setWindowIcon(QIcon(":/icons/icons/app.svg"));
@@ -1149,7 +1173,7 @@ int main(int argc, char *argv[])
 }
 
 /*************** End of main.cpp ***************************************/
-SKIP=0
+
 #-------------------------------------------------------------------------------
 # File: src\MainWindow.cpp
 #-------------------------------------------------------------------------------
@@ -1174,28 +1198,29 @@ SKIP=0
 
 #include "MainWindow.h"
 #include <QApplication>
-#include <QTextCursor>
-#include <QTextCharFormat>
-#include <QMessageBox>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QProcess>
+#include <QClipboard>
 #include <QDateTime>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
-#include <QSplitter>
+#include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
-#include <QToolBar>
-#include <QStatusBar>
-#include <QIcon>
-#include <QTextBlock>
-#include <QRegularExpression>
+#include <QMessageBox>
+#include <QProcess>
 #include <QProgressBar>
-#include <QFileDialog>
-#include <QClipboard>
+#include <QRegularExpression>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QTextBlock>
+#include <QTextCharFormat>
+#include <QTextCursor>
+#include <QToolBar>
+#include <QVBoxLayout>
 
 /******************************************************************************
  * @brief Constructor.
@@ -1349,7 +1374,6 @@ void MainWindow::setupUi()
     // Top panel: Open buttons and editors
     QWidget *topPanel = new QWidget(verticalSplitter);
     QVBoxLayout *topPanelLayout = new QVBoxLayout(topPanel);
-
     QHBoxLayout *openButtonsLayout = new QHBoxLayout();
     openButton = new QPushButton(tr("Open"), topPanel);
     openNewButton = new QPushButton(tr("Open New"), topPanel);
@@ -1387,7 +1411,6 @@ void MainWindow::setupUi()
     QVBoxLayout *mainLayout = new QVBoxLayout(tabCompare);
     mainLayout->addWidget(verticalSplitter);
     tabCompare->setLayout(mainLayout);
-
     tabs->addTab(tabCompare, tr("Compare"));
 
     // --- Settings tab ---
@@ -1397,6 +1420,7 @@ void MainWindow::setupUi()
     cmakePathEdit = new QLineEdit(tabSettings);
     cmakeBrowseButton = new QPushButton(tr("Browse..."), tabSettings);
     cmakeLoadButton = new QPushButton(tr("Load"), tabSettings);
+
     QWidget *cmakeRow = new QWidget(tabSettings);
     QHBoxLayout *cmakeRowLayout = new QHBoxLayout(cmakeRow);
     cmakeRowLayout->addWidget(cmakePathEdit);
@@ -1420,6 +1444,11 @@ void MainWindow::setupUi()
     backupRowLayout->addWidget(backupBrowseButton);
     setForm->addRow(tr("Backup Path:"), backupRow);
 
+    // Add Save button for settings
+    saveSettingsButton = new QPushButton(tr("Save"), tabSettings);
+    setForm->addRow(saveSettingsButton);
+
+    // Load settings
     cmakePathEdit->setText(settings.value("paths/cmake", "").toString());
     tempPathEdit->setText(settings.value("paths/temp", QDir::homePath() + "/CodeHelpAI_Temp").toString());
     backupPathEdit->setText(settings.value("paths/backup", QDir::homePath() + "/CodeHelpAI_Backups").toString());
@@ -1440,6 +1469,7 @@ void MainWindow::setupUi()
     tempFileEdit->setAcceptRichText(false);
     tempSplitter->addWidget(tempTree);
     tempSplitter->addWidget(tempFileEdit);
+
     QHBoxLayout *tempButtons = new QHBoxLayout();
     tempSaveButton = new QPushButton(tr("Save"), tabTemp);
     tempCopyButton = new QPushButton(tr("Copy"), tabTemp);
@@ -1449,6 +1479,7 @@ void MainWindow::setupUi()
     tempButtons->addWidget(tempCopyButton);
     tempButtons->addWidget(tempPasteButton);
     tempButtons->addWidget(tempClearButton);
+
     tempLayout->addWidget(tempSplitter);
     tempLayout->addLayout(tempButtons);
     tabTemp->setLayout(tempLayout);
@@ -1490,6 +1521,9 @@ void MainWindow::wireActions()
     connect(backupBrowseButton, &QPushButton::clicked, this, &MainWindow::browseBackupPath);
     connect(cmakeLoadButton, &QPushButton::clicked, this, &MainWindow::loadCMakeProject);
 
+    // Save button for Settings tab
+    connect(saveSettingsButton, &QPushButton::clicked, this, &MainWindow::saveSettings);
+
     // Temp tab
     connect(tempSaveButton, &QPushButton::clicked, [this]()
             {
@@ -1511,8 +1545,44 @@ void MainWindow::wireActions()
     connect(projectsLoadButton, &QPushButton::clicked, this, &MainWindow::actionLoadProject);
 
     connect(actCompile, &QAction::triggered, this, &MainWindow::actionCompile);
+
     // Other connects as needed (menus, toolbar, etc.)
     // ... (add any additional connects here, but ensure no duplicates) ...
+}
+
+/******************************************************************************
+ * @brief Slot for Save button in Settings tab.
+ *        Validates paths and saves to QSettings.
+ ******************************************************************************/
+void MainWindow::saveSettings()
+{
+    QString cmakePath = cmakePathEdit->text().trimmed();
+    QString tempPath = tempPathEdit->text().trimmed();
+    QString backupPath = backupPathEdit->text().trimmed();
+
+    // Validate paths
+    if (!QFileInfo::exists(cmakePath) || !QFileInfo(cmakePath).isFile())
+    {
+        QMessageBox::warning(this, tr("Invalid CMake Path"), tr("CMake path does not exist or is not a file."));
+        return;
+    }
+    if (!QFileInfo::exists(tempPath) || !QFileInfo(tempPath).isDir())
+    {
+        QMessageBox::warning(this, tr("Invalid Temp Path"), tr("Temp path does not exist or is not a folder."));
+        return;
+    }
+    if (!QFileInfo::exists(backupPath) || !QFileInfo(backupPath).isDir())
+    {
+        QMessageBox::warning(this, tr("Invalid Backup Path"), tr("Backup path does not exist or is not a folder."));
+        return;
+    }
+
+    // Save to QSettings
+    settings.setValue("paths/cmake", cmakePath);
+    settings.setValue("paths/temp", tempPath);
+    settings.setValue("paths/backup", backupPath);
+
+    QMessageBox::information(this, tr("Settings Saved"), tr("All paths validated and saved."));
 }
 
 /******************************************************************************
@@ -1666,7 +1736,7 @@ void MainWindow::setPaneColorsFromDiff(const QVector<QVector<QString>> &diff,
         else if (triple[0] == "-")
             fmt.setForeground(Qt::red);
         else if (triple[0] == "~")
-            fmt.setForeground(Qt::yellow);
+            fmt.setForeground(Qt::magenta);
         else
             fmt.setForeground(Qt::black);
 
@@ -1925,19 +1995,28 @@ void MainWindow::actionToggleOverwriteWarning(bool on)
  *        and offers to run anyway. Runs CMake, shows output in Compare panel,
  *        pops up dialog with summary. Shows progress and scrolls to bottom.
  ******************************************************************************/
+/******************************************************************************
+ * @brief Tests the code in the Temporary path using CMake.
+ *        Shows a progress bar during the operation.
+ ******************************************************************************/
 void MainWindow::actionCompile()
 {
+    QElapsedTimer timer;
+    timer.start();
+
     // Switch to Compare tab and show progress immediately
     tabs->setCurrentWidget(tabCompare);
-
     comparisonEdit->clear();
     statusBar()->showMessage(tr("Compile started..."), 2000);
 
+    // Create and show progress bar
     QProgressBar *progress = new QProgressBar(this);
-    progress->setRange(0, 0); // Indeterminate
+    progress->setRange(0, 100);
     statusBar()->addPermanentWidget(progress);
-    QApplication::processEvents(); // Ensure UI updates
+    progress->setValue(0);
+    QApplication::processEvents();
 
+    // Step 1: Check paths
     QString tempRoot = tempPathEdit->text().trimmed();
     if (tempRoot.isEmpty())
     {
@@ -1947,6 +2026,8 @@ void MainWindow::actionCompile()
                              tr("Set the Temporary path in Settings."));
         return;
     }
+    progress->setValue(10);
+    QApplication::processEvents();
 
     QString cmakeFile = tempRoot + "/CMakeLists.txt";
     QFileInfo cmakeInfo(cmakeFile);
@@ -1958,7 +2039,10 @@ void MainWindow::actionCompile()
                               tr("CMakeLists.txt not found in:\n%1\nPlease load the project again.").arg(tempRoot));
         return;
     }
+    progress->setValue(20);
+    QApplication::processEvents();
 
+    // Step 2: Check for missing source files
     QStringList sourceFiles = extractCMakeSourceFiles(cmakeFile);
     QStringList missingFiles;
     for (int i = 0; i < sourceFiles.size(); ++i)
@@ -1970,6 +2054,8 @@ void MainWindow::actionCompile()
             missingFiles << relPath;
         }
     }
+    progress->setValue(30);
+    QApplication::processEvents();
 
     if (!missingFiles.isEmpty())
     {
@@ -1988,7 +2074,10 @@ void MainWindow::actionCompile()
         statusBar()->addPermanentWidget(progress);
         QApplication::processEvents();
     }
+    progress->setValue(40);
+    QApplication::processEvents();
 
+    // Step 3: Prepare build directory
     QString buildDir = tempRoot + "/build";
     QDir buildDirObj(buildDir);
     if (buildDirObj.exists())
@@ -1996,28 +2085,32 @@ void MainWindow::actionCompile()
         buildDirObj.removeRecursively();
     }
     QDir().mkpath(buildDir);
-
     comparisonEdit->appendPlainText("=== CMake Debug Info ===");
     comparisonEdit->appendPlainText(QString("Temp project folder: %1").arg(tempRoot));
     comparisonEdit->appendPlainText(QString("Build folder: %1").arg(buildDir));
     comparisonEdit->appendPlainText("========================\n");
+    progress->setValue(50);
+    QApplication::processEvents();
 
-    // Step 1: Configure (force MinGW generator)
+    // Step 4: Configure CMake
     QString generator;
-    #ifdef _MSC_VER
-        generator = "Visual Studio 17 2022"; // Or match your installed MSVC version
-    #else
-        #ifdef __MINGW32__
-            generator = "MinGW Makefiles";
-        #else
-            generator = "Ninja"; // Fallback for other environments
-        #endif
-    #endif
+#ifdef _MSC_VER
+    generator = "Visual Studio 17 2022"; // Or match your installed MSVC version
+#else
+#ifdef __MINGW32__
+    generator = "MinGW Makefiles";
+#else
+    generator = "Ninja"; // Fallback for other environments
+#endif
+#endif
     QProcess cmakeConfig;
     QStringList configArgs;
     configArgs << "-G" << generator << "-S" << tempRoot << "-B" << buildDir;
     cmakeConfig.setWorkingDirectory(tempRoot);
     cmakeConfig.start("cmake", configArgs);
+    progress->setValue(60);
+    QApplication::processEvents();
+
     if (!cmakeConfig.waitForStarted(5000))
     {
         statusBar()->removeWidget(progress);
@@ -2032,13 +2125,18 @@ void MainWindow::actionCompile()
     comparisonEdit->appendPlainText("=== CMake Configure Output ===");
     comparisonEdit->appendPlainText(configOut);
     comparisonEdit->appendPlainText(configErr);
+    progress->setValue(70);
+    QApplication::processEvents();
 
-    // Step 2: Build
+    // Step 5: Build
     QProcess cmakeBuild;
     QStringList buildArgs;
     buildArgs << "--build" << buildDir;
     cmakeBuild.setWorkingDirectory(tempRoot);
     cmakeBuild.start("cmake", buildArgs);
+    progress->setValue(80);
+    QApplication::processEvents();
+
     if (!cmakeBuild.waitForStarted(5000))
     {
         statusBar()->removeWidget(progress);
@@ -2053,11 +2151,15 @@ void MainWindow::actionCompile()
     comparisonEdit->appendPlainText("=== CMake Build Output ===");
     comparisonEdit->appendPlainText(buildOut);
     comparisonEdit->appendPlainText(buildErr);
+    progress->setValue(90);
+    QApplication::processEvents();
 
+    // Step 6: Show summary and finish
     QTextCursor cursor(comparisonEdit->document());
     cursor.movePosition(QTextCursor::End);
     comparisonEdit->setTextCursor(cursor);
-
+    progress->setValue(100);
+    QApplication::processEvents();
     statusBar()->removeWidget(progress);
     progress->deleteLater();
 
@@ -2077,13 +2179,18 @@ void MainWindow::actionCompile()
             ++warningCount;
         }
     }
-
     QString summary = tr("Compile complete.\n\nErrors: %1\nWarnings: %2\n\nSee Compare panel for details.")
                           .arg(errorCount)
                           .arg(warningCount);
-    QMessageBox::information(this, tr("Compile Results"), summary);
 
-    statusBar()->showMessage(tr("Compile complete."), 3000);
+    // Calculate and show elapsed time
+    qint64 ms = timer.elapsed();
+    double seconds = ms / 1000.0;
+    QString timeMsg = tr("Elapsed time: %1 seconds").arg(QString::number(seconds, 'f', 2));
+    QMessageBox::information(this, tr("Compile Results"), summary + "\n\n" + timeMsg);
+    statusBar()->showMessage(tr("Compile complete. ") + timeMsg, 5000);
+    comparisonEdit->appendPlainText(timeMsg);
+
 }
 
 /******************************************************************************
@@ -2561,7 +2668,7 @@ void MainWindow::actionLoadProject()
 }
 
 /*************** End of MainWindow.cpp ***************************************/
-SKIP=0
+
 #-------------------------------------------------------------------------------
 # File: src\CompareEngine.h
 #-------------------------------------------------------------------------------
@@ -2661,7 +2768,7 @@ public:
 };
 
 /*************** End of CompareEngine.h **************************************/
-SKIP=0
+
 #-------------------------------------------------------------------------------
 # File: src\Config.h
 #-------------------------------------------------------------------------------
@@ -2706,7 +2813,7 @@ SKIP=0
 #endif
 
 /************** End of Config.h **************************/
-SKIP=0
+
 #-------------------------------------------------------------------------------
 # File: src\MainWindow.h
 #-------------------------------------------------------------------------------
@@ -2715,15 +2822,15 @@ SKIP=0
  * @brief Declares the main application window for CodeHelpAI.
  *
  * @author Jeffrey Scott Flesher with the help of AI: Copilot
- * @version 0.9
- * @date 2025-11-07
+ * @version 0.10
+ * @date    2025-11-08
  * @section License MIT
  * @section DESCRIPTION
  * Main GUI window with tabs for Compare, Settings, Temp, and Projects.
  * Integrates CompareEngine for function-aware code comparison.
  * The Compare panel is cleared and shows a progress bar during comparison.
  * Diff output is fully colorized: red for removed, green for new,
- * yellow for reordered, black for unchanged.
+ * magenta for reordered, black for unchanged.
  ******************************************************************************/
 
 #pragma once
@@ -2756,59 +2863,224 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
+    /******************************************************************************
+     * @brief Constructs the MainWindow.
+     * @param parent Parent widget.
+     ******************************************************************************/
     explicit MainWindow(QWidget *parent = nullptr);
+
+    /******************************************************************************
+     * @brief Destructor for MainWindow.
+     ******************************************************************************/
     ~MainWindow();
 
 private slots:
+    /******************************************************************************
+     * @brief Opens a file into the Original editor.
+     ******************************************************************************/
     void actionOpenOriginal();
+
+    /******************************************************************************
+     * @brief Opens a file into the New editor.
+     ******************************************************************************/
     void actionOpenNew();
+
+    /******************************************************************************
+     * @brief Saves comparison output to a file with overwrite warn.
+     ******************************************************************************/
     void actionSaveComparison();
+
+    /******************************************************************************
+     * @brief Handles Compare: tab focus, progress, diff, colors, summary.
+     ******************************************************************************/
     void actionCompare(); // Clears panel, shows progress bar, colorizes diff
+
+    /******************************************************************************
+     * @brief Shows the About dialog.
+     ******************************************************************************/
     void actionAbout();
+
+    /******************************************************************************
+     * @brief Shows the Help dialog with usage tips.
+     ******************************************************************************/
     void actionHelp();
+
+    /******************************************************************************
+     * @brief Adds selected text from New into Original.
+     ******************************************************************************/
     void actionAddSelectedCode();
+
+    /******************************************************************************
+     * @brief Copies selection from New into Original at cursor.
+     ******************************************************************************/
     void actionCopySelected();
+
+    /******************************************************************************
+     * @brief Moves selection from New into Original, removing from New.
+     ******************************************************************************/
     void actionMoveSelected();
+
+    /******************************************************************************
+     * @brief Makes the Compare tab active.
+     ******************************************************************************/
     void actionMakeCompareTabActive();
+
+    /******************************************************************************
+     * @brief Saves the Original editor content (or Save As).
+     ******************************************************************************/
     void actionSaveOriginal();
+
+    /******************************************************************************
+     * @brief Saves the New editor content (or Save As).
+     ******************************************************************************/
     void actionSaveNew();
+
+    /******************************************************************************
+     * @brief Save Original As to a chosen path, then save.
+     ******************************************************************************/
     void actionSaveOriginalAs();
+
+    /******************************************************************************
+     * @brief Save New As to a chosen path, then save.
+     ******************************************************************************/
     void actionSaveNewAs();
+
+    /******************************************************************************
+     * @brief Toggle overwrite warning setting.
+     * @param on True to enable warning, false to disable.
+     ******************************************************************************/
     void actionToggleOverwriteWarning(bool on);
+
+    /******************************************************************************
+     * @brief Tests the code in the Temporary path using CMake.
+     ******************************************************************************/
     void actionCompile();
+
+    /******************************************************************************
+     * @brief Browse for CMakeLists.txt and save to settings.
+     ******************************************************************************/
     void browseCMakePath();
+
+    /******************************************************************************
+     * @brief Browse for Temp folder and update view root.
+     ******************************************************************************/
     void browseTempPath();
+
+    /******************************************************************************
+     * @brief Loads the CMake project into the temp folder, backing up any existing
+     *        temp contents to a timestamped backup folder (excluding build).
+     ******************************************************************************/
     void loadCMakeProject();
+
+    /******************************************************************************
+     * @brief Clear Temp folder contents recursively.
+     ******************************************************************************/
     void clearTempFolder();
+
+    /******************************************************************************
+     * @brief Saves the contents of the temp file editor to the currently selected file.
+     ******************************************************************************/
     void actionSaveTempFile();
+
+    /******************************************************************************
+     * @brief Copies the contents of the temp file editor to the clipboard.
+     ******************************************************************************/
     void actionCopyTempFile();
+
+    /******************************************************************************
+     * @brief Pastes clipboard contents into the temp file editor.
+     ******************************************************************************/
     void actionPasteTempFile();
+
+    /******************************************************************************
+     * @brief Adds a new project to the projects list.
+     ******************************************************************************/
     void actionAddProject();
+
+    /******************************************************************************
+     * @brief Deletes the selected project from the projects list.
+     ******************************************************************************/
     void actionDeleteProject();
+
+    /******************************************************************************
+     * @brief Loads the selected project (placeholder for future logic).
+     ******************************************************************************/
     void actionLoadProject();
 
+    /******************************************************************************
+     * @brief Slot for Save button in Settings tab.
+     *        Validates paths and saves to QSettings.
+     ******************************************************************************/
+    void saveSettings();
+
 private:
+    /******************************************************************************
+     * @brief Sets up the main window UI, including all tabs and panels.
+     ******************************************************************************/
     void setupUi();
+
+    /******************************************************************************
+     * @brief Connects actions and widgets to their slots.
+     ******************************************************************************/
     void wireActions();
+
+    /******************************************************************************
+     * @brief Enables Add/Copy/Move depending on New selection.
+     ******************************************************************************/
     void updateAddSelectedEnabled();
+
     /**************************************************************************
      * @brief Colorizes diff output in the comparison panel.
      *        - Red for removed (-)
      *        - Green for new (+)
-     *        - Yellow for reordered (~)
+     *        - Magenta for reordered (~)
      *        - Black for unchanged ( )
      * @param diff Diff result from CompareEngine.
      *************************************************************************/
     void setPaneColorsFromDiff(const QVector<QVector<QString>> &diff,
                                const QString &fileName, const QString &functionName);
 
+    /******************************************************************************
+     * @brief Appends readable diff text per function into comparison.
+     * @param functionName Name of the function.
+     * @param diff Diff result from CompareEngine.
+     ******************************************************************************/
     void appendComparisonText(const QString &functionName,
                               const QVector<QVector<QString>> &diff);
+
+    /******************************************************************************
+     * @brief Warns before overwriting an existing file, with YesToAll.
+     * @param path Path to the file.
+     * @param onConfirm Callback to execute if confirmed.
+     ******************************************************************************/
     void warnOverwriteIfNeeded(const QString &path, std::function<void()> onConfirm);
+
+    /******************************************************************************
+     * @brief Writes UTF-8 text to file, creating parent folder.
+     * @param path Path to the file.
+     * @param text Text to write.
+     ******************************************************************************/
     void saveTextToFile(const QString &path, const QString &text);
+
+    /******************************************************************************
+     * @brief Ensure Temp root folder exists.
+     ******************************************************************************/
     void ensureTempRoot();
+
+    /******************************************************************************
+     * @brief Copy CMakeLists and sibling sources into Temp (heuristic).
+     * @param cmakePath Path to CMakeLists.txt.
+     * @param tempRoot Path to temp folder.
+     ******************************************************************************/
     void importCMakeToTemp(const QString &cmakePath, const QString &tempRoot);
+
+    /******************************************************************************
+     * @brief Minimal CMake scanning placeholder; returns matches.
+     * @param cmakePath Path to CMakeLists.txt.
+     * @return Vector of file paths.
+     ******************************************************************************/
     QVector<QString> gatherProjectFilesFromCMake(const QString &cmakePath);
+
     /******************************************************************************
      * @brief Extracts the project name from a CMakeLists.txt file.
      * @param cmakePath Absolute path to CMakeLists.txt.
@@ -2830,69 +3102,96 @@ private:
      ******************************************************************************/
     QString currentBackupRoot() const;
 
+    /******************************************************************************
+     * @brief Opens a dialog to select the backup folder and updates settings.
+     ******************************************************************************/
     void browseBackupPath();
+
+    /******************************************************************************
+     * @brief Recursively copies files and folders from srcPath to dstPath.
+     * @param srcPath Source path.
+     * @param dstPath Destination path.
+     * @return true if successful, false otherwise.
+     ******************************************************************************/
     bool copyRecursively(const QString &srcPath, const QString &dstPath);
+
+    /******************************************************************************
+     * @brief Extracts source/header file paths from CMakeLists.txt.
+     * @param cmakeFilePath Path to CMakeLists.txt.
+     * @return List of relative file paths to check.
+     ******************************************************************************/
     QStringList extractCMakeSourceFiles(const QString &cmakeFilePath);
 
     // ==== Private members ====
-    QTabWidget *tabs;
-    QWidget *tabCompare;
-    QWidget *tabSettings;
-    QWidget *tabTemp;
-    QWidget *tabProjects;
-    QSplitter *compareTopSplitter;
-    QTextEdit *originalEdit;
-    QTextEdit *newEdit;
-    QPlainTextEdit *comparisonEdit;
-    QPushButton *compareButton;
-    QLineEdit *cmakePathEdit;
-    QPushButton *cmakeBrowseButton;
-    QPushButton *cmakeLoadButton;
-    QLineEdit *tempPathEdit;
-    QPushButton *tempBrowseButton;
-    QLineEdit *backupPathEdit;
-    QSplitter *tempSplitter;
-    QTreeView *tempTree;
-    QFileSystemModel *tempModel;
-    QTextEdit *tempFileEdit;
-    QPushButton *tempSaveButton;
-    QPushButton *tempCopyButton;
-    QPushButton *tempPasteButton;
-    QPushButton *tempClearButton;
-    QListWidget *projectsList;
-    QPushButton *projectsAddButton;
-    QPushButton *projectsDeleteButton;
-    QPushButton *projectsLoadButton;
-    QLineEdit *projectNameEdit;
-    QAction *actOpenOriginal;
-    QAction *actOpenNew;
-    QAction *actSaveComparison;
-    QAction *actCompare;
-    QAction *actAbout;
-    QAction *actHelp;
-    QAction *actAddSelected;
-    QAction *actCopySelected;
-    QAction *actMoveSelected;
-    QAction *actMakeCompareActive;
-    QAction *actSaveOriginal;
-    QAction *actSaveNew;
-    QAction *actSaveOriginalAs;
-    QAction *actSaveNewAs;
-    QAction *actCompile;
-    QAction *actOverwriteWarn;
-    QSettings settings;
-    bool overwriteWarn;
-    QString originalPath;
-    QString newPath;
-    CompareEngine *compareEngine;
-    QPushButton *backupBrowseButton;
-    QPushButton *openButton;
-    QPushButton *openNewButton;
+    QTabWidget *tabs;                  ///< Main tab widget for all panels.
+    QWidget *tabCompare;               ///< Compare tab for code comparison.
+    QWidget *tabSettings;              ///< Settings tab for paths and options.
+    QWidget *tabTemp;                  ///< Temp tab for temporary file operations.
+    QWidget *tabProjects;              ///< Projects tab for project management.
+
+    QSplitter *compareTopSplitter;     ///< Splitter for top section of Compare tab.
+    QTextEdit *originalEdit;           ///< Editor for original code.
+    QTextEdit *newEdit;                ///< Editor for new code.
+    QPlainTextEdit *comparisonEdit;    ///< Output panel for comparison results.
+    QPushButton *compareButton;        ///< Button to trigger code comparison.
+
+    QLineEdit *cmakePathEdit;          ///< Edit field for CMakeLists.txt path.
+    QPushButton *cmakeBrowseButton;    ///< Button to browse for CMakeLists.txt.
+    QPushButton *cmakeLoadButton;      ///< Button to load CMake project.
+
+    QLineEdit *tempPathEdit;           ///< Edit field for temporary folder path.
+    QPushButton *tempBrowseButton;     ///< Button to browse for temp folder.
+
+    QLineEdit *backupPathEdit;         ///< Edit field for backup folder path.
+    QPushButton *saveSettingsButton;   ///< Button to save settings in Settings tab.
+
+    QSplitter *tempSplitter;           ///< Splitter for Temp tab panels.
+    QTreeView *tempTree;               ///< Tree view for temp folder files.
+    QFileSystemModel *tempModel;       ///< Model for temp folder file system.
+    QTextEdit *tempFileEdit;           ///< Editor for temp file content.
+
+    QPushButton *tempSaveButton;       ///< Button to save temp file.
+    QPushButton *tempCopyButton;       ///< Button to copy temp file content.
+    QPushButton *tempPasteButton;      ///< Button to paste into temp file editor.
+    QPushButton *tempClearButton;      ///< Button to clear temp folder.
+
+    QListWidget *projectsList;         ///< List widget for projects.
+    QPushButton *projectsAddButton;    ///< Button to add a new project.
+    QPushButton *projectsDeleteButton; ///< Button to delete selected project.
+    QPushButton *projectsLoadButton;   ///< Button to load selected project.
+    QLineEdit *projectNameEdit;        ///< Edit field for project name.
+
+    QAction *actOpenOriginal;          ///< Action to open original file.
+    QAction *actOpenNew;               ///< Action to open new file.
+    QAction *actSaveComparison;        ///< Action to save comparison output.
+    QAction *actCompare;               ///< Action to trigger comparison.
+    QAction *actAbout;                 ///< Action to show About dialog.
+    QAction *actHelp;                  ///< Action to show Help dialog.
+    QAction *actAddSelected;           ///< Action to add selected code.
+    QAction *actCopySelected;          ///< Action to copy selected code.
+    QAction *actMoveSelected;          ///< Action to move selected code.
+    QAction *actMakeCompareActive;     ///< Action to activate Compare tab.
+    QAction *actSaveOriginal;          ///< Action to save original file.
+    QAction *actSaveNew;               ///< Action to save new file.
+    QAction *actSaveOriginalAs;        ///< Action to save original file as.
+    QAction *actSaveNewAs;             ///< Action to save new file as.
+    QAction *actCompile;               ///< Action to compile code.
+    QAction *actOverwriteWarn;         ///< Action to toggle overwrite warning.
+
+    QSettings settings;                ///< Persistent settings storage.
+    bool overwriteWarn;                ///< Flag for overwrite warning.
+    QString originalPath;              ///< Path to original file.
+    QString newPath;                   ///< Path to new file.
+    CompareEngine *compareEngine;      ///< Function-aware code comparison engine.
+
+    QPushButton *backupBrowseButton;   ///< Button to browse for backup folder.
+    QPushButton *openButton;           ///< Button to open original file.
+    QPushButton *openNewButton;        ///< Button to open new file.
 
 };
 
 /*************** End of MainWindow.h ***************************************/
-SKIP=0
+
 # Directory Structure 
 #------------------------------------------------------------------------------- 
 ├── translations
@@ -2927,15 +3226,14 @@ SKIP=0
 │   ├── app.svg
 │   └── about.svg
 ├── src2txt.sh
-├── src2txt.cmd.txt
 ├── src2txt.cmd
 ├── README.md
 ├── LICENSE
-├── findstring.sh
 ├── DiffCheckAI.txt
 ├── DiffCheckAI.qrc
 ├── CMakeLists.txt
-├── clean-build.bat
-└── .gitignore
+├── clean-build.cmd
+├── .gitignore
+└── .clang-format
 
 #*** End of file DiffCheckAI ***
