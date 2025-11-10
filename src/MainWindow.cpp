@@ -1,6 +1,6 @@
 /******************************************************************************
  * @file MainWindow.cpp
- * @brief Implements the main application window for CodeHelpAI.
+ * @brief Implements the main application window for DiffCheckAI.
  *
  * @author Jeffrey Scott Flesher with the help of AI: Copilot
  * @version 0.8
@@ -42,6 +42,13 @@
 #include <QTextCursor>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <QColor>
+#include <QTimer>
+#include <tuple>
 
 /******************************************************************************
  * @brief Constructor.
@@ -94,16 +101,23 @@ MainWindow::MainWindow(QWidget *parent)
     actSaveNewAs(nullptr),
     actCompile(nullptr),
     actOverwriteWarn(nullptr),
-    settings("AM-Tower", "CodeHelpAI"),
     overwriteWarn(true),
     originalPath(),
     newPath(),
     compareEngine(new CompareEngine())
 {
-    overwriteWarn = settings.value("overwriteWarn", true).toBool();
+    // QtSettings
+    appSettings = new Settings(QDir::currentPath() + "/data/settings.json");
+    appSettings->load();
+
     setupUi();
     wireActions();
     updateAddSelectedEnabled();
+    // Colorized Status bar
+    colorLabel = nullptr;
+    statusQueueStop = false;
+    statusQueueThread = std::thread(&MainWindow::statusQueueWorker, this);
+    queueStatusMessage(tr("Ready."), 6000);
 }
 
 /******************************************************************************
@@ -112,6 +126,17 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete compareEngine;
+    delete appSettings;
+    // Status bar queue
+    {
+        std::lock_guard<std::mutex> lock(statusQueueMutex);
+        statusQueueStop = true;
+    }
+    statusQueueCV.notify_all();
+    if (statusQueueThread.joinable())
+    {
+        statusQueueThread.join();
+    }
 }
 
 /******************************************************************************
@@ -119,7 +144,7 @@ MainWindow::~MainWindow()
  ******************************************************************************/
 void MainWindow::setupUi()
 {
-    setWindowTitle(tr("CodeHelpAI"));
+    setWindowTitle(tr("DiffCheckAI"));
     resize(1100, 700);
 
     // Menu bar and tool bar
@@ -238,10 +263,11 @@ void MainWindow::setupUi()
     tabSettings = new QWidget(this);
     QFormLayout *setForm = new QFormLayout(tabSettings);
 
+    // CMake path row
     cmakePathEdit = new QLineEdit(tabSettings);
+    cmakePathEdit->setObjectName("cmakePathEdit");
     cmakeBrowseButton = new QPushButton(tr("Browse..."), tabSettings);
     cmakeLoadButton = new QPushButton(tr("Load"), tabSettings);
-
     QWidget *cmakeRow = new QWidget(tabSettings);
     QHBoxLayout *cmakeRowLayout = new QHBoxLayout(cmakeRow);
     cmakeRowLayout->addWidget(cmakePathEdit);
@@ -249,30 +275,36 @@ void MainWindow::setupUi()
     cmakeRowLayout->addWidget(cmakeLoadButton);
     setForm->addRow(tr("CMakeLists.txt:"), cmakeRow);
 
+    // Temp path row
     tempPathEdit = new QLineEdit(tabSettings);
+    tempPathEdit->setObjectName("tempPathEdit");
     tempBrowseButton = new QPushButton(tr("Browse..."), tabSettings);
     QWidget *tempRow = new QWidget(tabSettings);
     QHBoxLayout *tempRowLayout = new QHBoxLayout(tempRow);
     tempRowLayout->addWidget(tempPathEdit);
     tempRowLayout->addWidget(tempBrowseButton);
     setForm->addRow(tr("Temporary Path:"), tempRow);
-
+    tempPathEdit->setEnabled(false);
+    // Backup path row
     backupPathEdit = new QLineEdit(tabSettings);
+    backupPathEdit->setObjectName("backupPathEdit");
     backupBrowseButton = new QPushButton(tr("Browse..."), tabSettings);
     QWidget *backupRow = new QWidget(tabSettings);
     QHBoxLayout *backupRowLayout = new QHBoxLayout(backupRow);
     backupRowLayout->addWidget(backupPathEdit);
     backupRowLayout->addWidget(backupBrowseButton);
     setForm->addRow(tr("Backup Path:"), backupRow);
+    backupPathEdit->setEnabled(false);
 
-    // Add Save button for settings
+    // Save button for settings
     saveSettingsButton = new QPushButton(tr("Save"), tabSettings);
+    saveSettingsButton->setObjectName("saveSettingsButton");
     setForm->addRow(saveSettingsButton);
 
     // Load settings
-    cmakePathEdit->setText(settings.value("paths/cmake", "").toString());
-    tempPathEdit->setText(settings.value("paths/temp", QDir::homePath() + "/CodeHelpAI_Temp").toString());
-    backupPathEdit->setText(settings.value("paths/backup", QDir::homePath() + "/CodeHelpAI_Backups").toString());
+    cmakePathEdit->setText(appSettings->value("paths/cmake", "").toString());
+    tempPathEdit->setText(appSettings->value("paths/temp", QDir::homePath() + "/DiffCheckAI_Temp").toString());
+    backupPathEdit->setText(appSettings->value("paths/backup", QDir::homePath() + "/DiffCheckAI_Backups").toString());
 
     tabSettings->setLayout(setForm);
     tabs->addTab(tabSettings, tr("Settings"));
@@ -366,7 +398,8 @@ void MainWindow::wireActions()
     connect(projectsLoadButton, &QPushButton::clicked, this, &MainWindow::actionLoadProject);
 
     connect(actCompile, &QAction::triggered, this, &MainWindow::actionCompile);
-
+    // Cmake path change
+    connect(cmakePathEdit, &QLineEdit::textChanged, this, &MainWindow::onCmakePathChanged);
     // Other connects as needed (menus, toolbar, etc.)
     // ... (add any additional connects here, but ensure no duplicates) ...
 }
@@ -375,37 +408,79 @@ void MainWindow::wireActions()
  * @brief Slot for Save button in Settings tab.
  *        Validates paths and saves to QSettings.
  ******************************************************************************/
-void MainWindow::saveSettings()
+bool MainWindow::saveSettings()
 {
     QString cmakePath = cmakePathEdit->text().trimmed();
     QString tempPath = tempPathEdit->text().trimmed();
     QString backupPath = backupPathEdit->text().trimmed();
 
-    // Validate paths
-    if (!QFileInfo::exists(cmakePath) || !QFileInfo(cmakePath).isFile())
+    // Validate CMake path
+    QFileInfo cmakeFileInfo(cmakePath);
+    if (!cmakeFileInfo.exists() || !cmakeFileInfo.isFile())
     {
-        QMessageBox::warning(this, tr("Invalid CMake Path"), tr("CMake path does not exist or is not a file."));
-        return;
-    }
-    if (!QFileInfo::exists(tempPath) || !QFileInfo(tempPath).isDir())
-    {
-        QMessageBox::warning(this, tr("Invalid Temp Path"), tr("Temp path does not exist or is not a folder."));
-        return;
-    }
-    if (!QFileInfo::exists(backupPath) || !QFileInfo(backupPath).isDir())
-    {
-        QMessageBox::warning(this, tr("Invalid Backup Path"), tr("Backup path does not exist or is not a folder."));
-        return;
+        queueStatusMessage(tr("Invalid CMake Path: does not exist or is not a file."), 3000, Qt::red);
+        return false;
     }
 
-    // Save to QSettings
-    settings.setValue("paths/cmake", cmakePath);
-    settings.setValue("paths/temp", tempPath);
-    settings.setValue("paths/backup", backupPath);
+    // Validate temp and backup folders
+    QDir tempDir(tempPath);
+    QDir backupDir(backupPath);
 
-    QMessageBox::information(this, tr("Settings Saved"), tr("All paths validated and saved."));
+    if (!tempDir.exists())
+    {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            tr("Create Temp Folder"),
+            tr("Temp folder does not exist:\n%1\nCreate it?").arg(tempPath),
+            QMessageBox::Yes | QMessageBox::No
+            );
+        if (reply == QMessageBox::Yes)
+        {
+            if (!QDir().mkpath(tempPath))
+            {
+                queueStatusMessage(tr("Failed to create Temp folder."), 3000, Qt::red);
+                return false;
+            }
+        }
+        else
+        {
+            queueStatusMessage(tr("Temp folder not created. Change name or path."), 3000, Qt::red);
+            return false;
+        }
+    }
+
+    if (!backupDir.exists())
+    {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            tr("Create Backup Folder"),
+            tr("Backup folder does not exist:\n%1\nCreate it?").arg(backupPath),
+            QMessageBox::Yes | QMessageBox::No
+            );
+        if (reply == QMessageBox::Yes)
+        {
+            if (!QDir().mkpath(backupPath))
+            {
+                queueStatusMessage(tr("Failed to create Backup folder."), 3000, Qt::red);
+                return false;
+            }
+        }
+        else
+        {
+            queueStatusMessage(tr("Backup folder not created. Change name or path."), 3000, Qt::red);
+            return false;
+        }
+    }
+
+    // Save settings
+    appSettings->setValue("paths/cmake", cmakePath);
+    appSettings->setValue("paths/temp", tempPath);
+    appSettings->setValue("paths/backup", backupPath);
+    appSettings->save();
+
+    queueStatusMessage(tr("Settings Saved: All paths validated and saved."), 5000, Qt::green);
+    return true;
 }
-
 /******************************************************************************
  * @brief Open a file into the Original editor.
  ******************************************************************************/
@@ -415,10 +490,11 @@ void MainWindow::actionOpenOriginal()
     QString path = QFileDialog::getOpenFileName(this, tr("Open Original"), dir, tr("Code Files (*.h *.hpp *.c *.cpp *.cc *.txt);;All Files (*)"));
     if (path.isEmpty()) { return; }
     QFile f(path);
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         originalEdit->setPlainText(QString::fromUtf8(f.readAll()));
         originalPath = path;
-        statusBar()->showMessage(tr("Opened original: %1").arg(path), 2000);
+        queueStatusMessage(tr("Opened original: %1").arg(path));
     }
 }
 
@@ -436,10 +512,13 @@ void MainWindow::browseBackupPath()
         );
 
     // If the user selected a folder, update the UI and settings
-    if (!path.isEmpty()) {
+    if (!path.isEmpty())
+    {
         backupPathEdit->setText(path);
-        settings.setValue("paths/backup", path);
-        statusBar()->showMessage(tr("Backup folder set to: %1").arg(path), 2000);
+        appSettings->setValue("paths/backup", path);
+        appSettings->save();
+
+        queueStatusMessage(tr("Backup folder set to: %1").arg(path));
     }
 }
 
@@ -455,7 +534,7 @@ void MainWindow::actionOpenNew()
     if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         newEdit->setPlainText(QString::fromUtf8(f.readAll()));
         newPath = path;
-        statusBar()->showMessage(tr("Opened new: %1").arg(path), 2000);
+        queueStatusMessage(tr("Opened new: %1").arg(path), 2000);
     }
 }
 
@@ -469,7 +548,7 @@ void MainWindow::actionSaveComparison()
     if (path.isEmpty()) { return; }
     warnOverwriteIfNeeded(path, [this, path]() {
         saveTextToFile(path, comparisonEdit->toPlainText());
-        statusBar()->showMessage(tr("Saved comparison: %1").arg(path), 2000);
+        queueStatusMessage(tr("Saved comparison: %1").arg(path), 2000);
     });
 }
 
@@ -500,7 +579,7 @@ void MainWindow::actionCompare()
     QProgressBar *progress = new QProgressBar(this);
     progress->setRange(0, totalSteps);
     statusBar()->addPermanentWidget(progress);
-    statusBar()->showMessage(tr("Comparison started..."));
+    queueStatusMessage(tr("Comparison started..."));
 
     int step = 0;
     for (auto it = origMap.constBegin(); it != origMap.constEnd(); ++it)
@@ -526,7 +605,7 @@ void MainWindow::actionCompare()
 
     statusBar()->removeWidget(progress);
     progress->deleteLater();
-    statusBar()->showMessage(tr("Comparison finished"), 3000);
+    queueStatusMessage(tr("Comparison finished"), 3000);
 }
 
 /******************************************************************************
@@ -614,8 +693,8 @@ void MainWindow::appendComparisonText(const QString &functionName,
 void MainWindow::actionAbout()
 {
     QMessageBox::about(this,
-                       tr("About CodeHelpAI"),
-                       tr("<b>CodeHelpAI</b><br>"
+                       tr("About DiffCheckAI"),
+                       tr("<b>DiffCheckAI</b><br>"
                           "Function-level code comparison with style-insensitive matching.<br>"
                           "Green = same, Red = deleted in original, Yellow = new, Cyan = reordered."));
 }
@@ -724,7 +803,9 @@ void MainWindow::warnOverwriteIfNeeded(const QString &path, std::function<void()
     else if (ret == QMessageBox::YesToAll)
     {
         overwriteWarn = false;
-        settings.setValue("overwriteWarn", false);
+        appSettings->setValue("overwriteWarn", false);
+        appSettings->save();
+
         onConfirm();
     }
 }
@@ -757,7 +838,7 @@ void MainWindow::actionSaveOriginal()
     }
     warnOverwriteIfNeeded(originalPath, [this]() {
         saveTextToFile(originalPath, originalEdit->toPlainText());
-        statusBar()->showMessage(tr("Saved original: %1").arg(originalPath), 2000);
+        queueStatusMessage(tr("Saved original: %1").arg(originalPath), 2000);
     });
 }
 
@@ -773,7 +854,7 @@ void MainWindow::actionSaveNew()
     }
     warnOverwriteIfNeeded(newPath, [this]() {
         saveTextToFile(newPath, newEdit->toPlainText());
-        statusBar()->showMessage(tr("Saved new: %1").arg(newPath), 2000);
+        queueStatusMessage(tr("Saved new: %1").arg(newPath), 2000);
     });
 }
 
@@ -807,7 +888,8 @@ void MainWindow::actionSaveNewAs()
 void MainWindow::actionToggleOverwriteWarning(bool on)
 {
     overwriteWarn = on;
-    settings.setValue("overwriteWarn", overwriteWarn);
+    appSettings->setValue("overwriteWarn", overwriteWarn);
+    appSettings->save();
 }
 
 /******************************************************************************
@@ -828,7 +910,7 @@ void MainWindow::actionCompile()
     // Switch to Compare tab and show progress immediately
     tabs->setCurrentWidget(tabCompare);
     comparisonEdit->clear();
-    statusBar()->showMessage(tr("Compile started..."), 2000);
+    queueStatusMessage(tr("Compile started..."), 2000);
 
     // Create and show progress bar
     QProgressBar *progress = new QProgressBar(this);
@@ -888,7 +970,7 @@ void MainWindow::actionCompile()
                                        QMessageBox::Yes | QMessageBox::No);
         if (ret != QMessageBox::Yes)
         {
-            statusBar()->showMessage(tr("Compile cancelled."), 2000);
+            queueStatusMessage(tr("Compile cancelled."), 2000);
             return;
         }
         // Show progress again if user continues
@@ -1009,7 +1091,7 @@ void MainWindow::actionCompile()
     double seconds = ms / 1000.0;
     QString timeMsg = tr("Elapsed time: %1 seconds").arg(QString::number(seconds, 'f', 2));
     QMessageBox::information(this, tr("Compile Results"), summary + "\n\n" + timeMsg);
-    statusBar()->showMessage(tr("Compile complete. ") + timeMsg, 5000);
+    queueStatusMessage(tr("Compile complete. ") + timeMsg, 5000);
     comparisonEdit->appendPlainText(timeMsg);
 
 }
@@ -1075,7 +1157,8 @@ void MainWindow::browseCMakePath()
     QString path = QFileDialog::getOpenFileName(this, tr("Select CMakeLists.txt"), QString(), tr("CMakeLists (CMakeLists.txt)"));
     if (path.isEmpty()) { return; }
     cmakePathEdit->setText(path);
-    settings.setValue("paths/cmake", path);
+    appSettings->setValue("paths/cmake", path);
+    appSettings->save();
 }
 
 /******************************************************************************
@@ -1086,7 +1169,8 @@ void MainWindow::browseTempPath()
     QString path = QFileDialog::getExistingDirectory(this, tr("Select Temp Folder"), tempPathEdit->text());
     if (path.isEmpty()) { return; }
     tempPathEdit->setText(path);
-    settings.setValue("paths/temp", path);
+    appSettings->setValue("paths/temp", path);
+    appSettings->save();
     tempModel->setRootPath(path);
     tempTree->setRootIndex(tempModel->index(path));
 }
@@ -1132,7 +1216,7 @@ void MainWindow::loadCMakeProject()
                                        QMessageBox::Yes | QMessageBox::No);
         if (ret != QMessageBox::Yes)
         {
-            statusBar()->showMessage(tr("Load cancelled."), 2000);
+            queueStatusMessage(tr("Load cancelled."), 2000);
             return;
         }
 
@@ -1145,7 +1229,7 @@ void MainWindow::loadCMakeProject()
         QProgressBar *backupProgress = new QProgressBar(this);
         backupProgress->setRange(0, tempEntries.size());
         statusBar()->addPermanentWidget(backupProgress);
-        statusBar()->showMessage(tr("Backing up temp folder..."));
+        queueStatusMessage(tr("Backing up temp folder..."));
 
         int backupStep = 0;
         for (int i = 0; i < tempEntries.size(); ++i)
@@ -1161,13 +1245,13 @@ void MainWindow::loadCMakeProject()
         }
         statusBar()->removeWidget(backupProgress);
         backupProgress->deleteLater();
-        statusBar()->showMessage(tr("Backup created: %1").arg(backupFolder), 3000);
+        queueStatusMessage(tr("Backup created: %1").arg(backupFolder), 3000);
 
         // Progress bar for deletion
         QProgressBar *deleteProgress = new QProgressBar(this);
         deleteProgress->setRange(0, tempEntries.size());
         statusBar()->addPermanentWidget(deleteProgress);
-        statusBar()->showMessage(tr("Deleting temp folder contents..."));
+        queueStatusMessage(tr("Deleting temp folder contents..."));
 
         int deleteStep = 0;
         for (int i = 0; i < tempEntries.size(); ++i)
@@ -1199,7 +1283,7 @@ void MainWindow::loadCMakeProject()
     QProgressBar *copyProgress = new QProgressBar(this);
     copyProgress->setRange(0, srcEntries.size());
     statusBar()->addPermanentWidget(copyProgress);
-    statusBar()->showMessage(tr("Copying project to temp..."));
+    queueStatusMessage(tr("Copying project to temp..."));
 
     int copyStep = 0;
     for (int i = 0; i < srcEntries.size(); ++i)
@@ -1216,7 +1300,7 @@ void MainWindow::loadCMakeProject()
     statusBar()->removeWidget(copyProgress);
     copyProgress->deleteLater();
 
-    statusBar()->showMessage(tr("Project loaded to Temp: %1").arg(tempRoot), 3000);
+    queueStatusMessage(tr("Project loaded to Temp: %1").arg(tempRoot), 3000);
 }
 
 /******************************************************************************
@@ -1282,13 +1366,13 @@ void MainWindow::clearTempFolder()
  * @brief Extracts the project name from a CMakeLists.txt file.
  *        Looks for a line like: project(MyProject)
  * @param cmakePath Absolute path to CMakeLists.txt.
- * @return Project name, or "CodeHelpAI" if not found.
+ * @return Project name, or "DiffCheckAI" if not found.
  ******************************************************************************/
 QString MainWindow::extractProjectNameFromCMake(const QString &cmakePath) const
 {
     QFile file(cmakePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return "CodeHelpAI"; // fallback if file can't be opened
+        return "DiffCheckAI"; // fallback if file can't be opened
 
     QString contents = QString::fromUtf8(file.readAll());
     QRegularExpression re(R"(project\s*\(\s*([^\s\)]+))", QRegularExpression::CaseInsensitiveOption);
@@ -1296,7 +1380,7 @@ QString MainWindow::extractProjectNameFromCMake(const QString &cmakePath) const
     if (match.hasMatch())
         return match.captured(1);
 
-    return "CodeHelpAI"; // fallback if not found
+    return "DiffCheckAI"; // fallback if not found
 }
 
 /******************************************************************************
@@ -1306,9 +1390,9 @@ QString MainWindow::extractProjectNameFromCMake(const QString &cmakePath) const
  ******************************************************************************/
 QString MainWindow::currentTempRoot() const
 {
-    QString cmakePath = settings.value("paths/cmake", "").toString();
+    QString cmakePath = appSettings->value("paths/cmake", "").toString();
     if (cmakePath.isEmpty())
-        return QDir::homePath() + "/CodeHelpAI_Temp";
+        return QDir::homePath() + "/DiffCheckAI_Temp";
 
     QFileInfo cmakeFile(cmakePath);
     QDir cmakeDir = cmakeFile.dir();
@@ -1326,9 +1410,10 @@ QString MainWindow::currentTempRoot() const
  ******************************************************************************/
 QString MainWindow::currentBackupRoot() const
 {
-    QString cmakePath = settings.value("paths/cmake", "").toString();
+    QString cmakePath = appSettings->value("paths/cmake", "").toString();
+
     if (cmakePath.isEmpty())
-        return QDir::homePath() + "/CodeHelpAI_Backups";
+        return QDir::homePath() + "/DiffCheckAI_Backups";
 
     QFileInfo cmakeFile(cmakePath);
     QDir cmakeDir = cmakeFile.dir();
@@ -1413,7 +1498,7 @@ void MainWindow::actionSaveTempFile()
     }
     file.write(tempFileEdit->toPlainText().toUtf8());
     file.close();
-    statusBar()->showMessage(tr("Saved: %1").arg(path), 2000);
+    queueStatusMessage(tr("Saved: %1").arg(path), 2000);
 }
 
 /******************************************************************************
@@ -1423,7 +1508,7 @@ void MainWindow::actionCopyTempFile()
 {
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(tempFileEdit->toPlainText());
-    statusBar()->showMessage(tr("Copied to clipboard."), 2000);
+    queueStatusMessage(tr("Copied to clipboard."), 2000);
 }
 
 /******************************************************************************
@@ -1433,7 +1518,7 @@ void MainWindow::actionPasteTempFile()
 {
     QClipboard *clipboard = QApplication::clipboard();
     tempFileEdit->insertPlainText(clipboard->text());
-    statusBar()->showMessage(tr("Pasted from clipboard."), 2000);
+    queueStatusMessage(tr("Pasted from clipboard."), 2000);
 }
 
 /******************************************************************************
@@ -1454,7 +1539,7 @@ void MainWindow::actionAddProject()
         return;
     }
     projectsList->addItem(name);
-    statusBar()->showMessage(tr("Project added: %1").arg(name), 2000);
+    queueStatusMessage(tr("Project added: %1").arg(name), 2000);
 }
 
 /******************************************************************************
@@ -1469,7 +1554,8 @@ void MainWindow::actionDeleteProject()
         return;
     }
     delete item;
-    statusBar()->showMessage(tr("Project deleted."), 2000);
+    queueStatusMessage(tr("Project deleted."));
+
 }
 
 /******************************************************************************
@@ -1485,7 +1571,150 @@ void MainWindow::actionLoadProject()
     }
     QString name = item->text();
     // TODO: Implement actual project loading logic
-    statusBar()->showMessage(tr("Loaded project: %1").arg(name), 2000);
+    queueStatusMessage(tr("Loaded project: %1").arg(name), 2000);
 }
 
+#include <QLabel>
+#include <QColor>
+#include <QTimer>
+#include <tuple>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+
+/****************************************************************
+ * @brief Queues a colored status bar message with a custom delay.
+ * @param message The message to display.
+ * @param timeoutMs The display duration in milliseconds.
+ * @param color The color of the message text.
+ ***************************************************************/
+void MainWindow::queueStatusMessage(const QString &message, int timeoutMs, const QColor &color)
+{
+    {
+        std::lock_guard<std::mutex> lock(statusQueueMutex);
+        if (statusQueue.size() >= statusQueueMaxSize)
+        {
+            statusQueue.pop();
+        }
+        statusQueue.push(std::make_tuple(message, timeoutMs, color));
+    }
+    statusQueueCV.notify_one();
+}
+
+/****************************************************************
+ * @brief Worker thread for status message queue.
+ ***************************************************************/
+void MainWindow::statusQueueWorker()
+{
+    while (true)
+    {
+        QString nextMessage;
+        int nextTimeout = 2000;
+        QColor nextColor = Qt::black;
+        {
+            std::unique_lock<std::mutex> lock(statusQueueMutex);
+            statusQueueCV.wait(lock, [this]
+                               {
+                                   return !statusQueue.empty() || statusQueueStop;
+                               });
+
+            if (statusQueueStop && statusQueue.empty())
+            {
+                break;
+            }
+
+            auto item = statusQueue.front();
+            nextMessage = std::get<0>(item);
+            nextTimeout = std::get<1>(item);
+            nextColor = std::get<2>(item);
+            statusQueue.pop();
+        }
+
+        QMetaObject::invokeMethod(this, [this, nextMessage, nextTimeout, nextColor]()
+                                  {
+                                      showStatusBarMessage(nextMessage, nextTimeout, nextColor);
+                                  }, Qt::QueuedConnection);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(nextTimeout));
+    }
+}
+
+/****************************************************************
+ * @brief Shows a colored message on the status bar.
+ * @param message The message to display.
+ * @param timeoutMs The display duration in milliseconds.
+ * @param color The color of the message text.
+ ***************************************************************/
+void MainWindow::showStatusBarMessage(const QString &message, int timeoutMs, const QColor &color)
+{
+    if (!colorLabel)
+    {
+        colorLabel = new QLabel(this);
+        statusBar()->addPermanentWidget(colorLabel, 1);
+    }
+    colorLabel->setText(message);
+
+    QPalette palette = colorLabel->palette();
+    palette.setColor(QPalette::WindowText, color);
+    colorLabel->setPalette(palette);
+
+    // Optionally clear after timeout
+    QTimer::singleShot(timeoutMs, this, [this]()
+                       {
+                           if (colorLabel)
+                           {
+                               colorLabel->clear();
+                           }
+                       });
+}
+
+void MainWindow::importSettings(const QString& filePath)
+{
+    if (appSettings->import(filePath))
+        queueStatusMessage("Settings imported!", 3000, Qt::green);
+    else
+        queueStatusMessage("Import failed!", 3000, Qt::red);
+}
+
+void MainWindow::exportSettings(const QString& filePath)
+{
+    if (appSettings->exportTo(filePath))
+        queueStatusMessage("Settings exported!", 3000, Qt::green);
+    else
+        queueStatusMessage("Export failed!", 3000, Qt::red);
+}
+
+/****************************************************************
+ * @brief Slot called when the CMake path is changed.
+ * Enables/disables temp and backup path edits and sets defaults.
+ ***************************************************************/
+void MainWindow::onCmakePathChanged()
+{
+    QString cmakePath = cmakePathEdit->text().trimmed();
+    QFileInfo cmakeFileInfo(cmakePath);
+
+    if (cmakeFileInfo.exists() && cmakeFileInfo.isFile())
+    {
+        QString appName = QCoreApplication::applicationName();
+        QDir cmakeDir = cmakeFileInfo.dir();
+        cmakeDir.cdUp();
+
+        QString tempPathDefault = cmakeDir.absolutePath() + "/" + appName + "_Temp";
+        QString backupPathDefault = cmakeDir.absolutePath() + "/" + appName + "_Backups";
+
+        tempPathEdit->setText(appSettings->value("paths/temp", tempPathDefault).toString());
+        backupPathEdit->setText(appSettings->value("paths/backup", backupPathDefault).toString());
+
+        tempPathEdit->setEnabled(true);
+        backupPathEdit->setEnabled(true);
+    }
+    else
+    {
+        tempPathEdit->setEnabled(false);
+        backupPathEdit->setEnabled(false);
+        tempPathEdit->clear();
+        backupPathEdit->clear();
+    }
+}
 /*************** End of MainWindow.cpp ***************************************/

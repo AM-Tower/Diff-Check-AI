@@ -1,6 +1,6 @@
 /******************************************************************************
  * @file MainWindow.h
- * @brief Declares the main application window for CodeHelpAI.
+ * @brief Declares the main application window for DiffCheckAI.
  *
  * @author Jeffrey Scott Flesher with the help of AI: Copilot
  * @version 0.10
@@ -17,7 +17,6 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QSettings>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QPlainTextEdit>
@@ -33,6 +32,13 @@
 #include <QStatusBar>
 #include <QProgressBar>
 #include <functional>
+#include <queue>
+#include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <QLabel>
+#include <QColor>
+#include "Settings.h"
 #include "CompareEngine.h"
 
 /******************************************************************************
@@ -54,6 +60,27 @@ public:
      * @brief Destructor for MainWindow.
      ******************************************************************************/
     ~MainWindow();
+
+    QLineEdit* getCmakePathEdit() const { return cmakePathEdit; }
+    QLineEdit* getTempPathEdit() const { return tempPathEdit; }
+    QLineEdit* getBackupPathEdit() const { return backupPathEdit; }
+    QPushButton* getSaveSettingsButton() const { return saveSettingsButton; }
+
+    /****************************************************************
+     * @brief Queues a colored status bar message with a custom delay.
+     * @param message The message to display.
+     * @param timeoutMs The display duration in milliseconds.
+     * @param color The color of the message text.
+     ***************************************************************/
+    void queueStatusMessage(const QString &message, int timeoutMs = 2000, const QColor &color = Qt::black);
+
+public slots:
+    /******************************************************************************
+     * @brief Slot for Save button in Settings tab.
+     *        Validates paths and saves to QSettings.
+     * @return true if it saved, else false.
+     ******************************************************************************/
+    bool saveSettings();
 
 private slots:
     /******************************************************************************
@@ -188,11 +215,7 @@ private slots:
      ******************************************************************************/
     void actionLoadProject();
 
-    /******************************************************************************
-     * @brief Slot for Save button in Settings tab.
-     *        Validates paths and saves to QSettings.
-     ******************************************************************************/
-    void saveSettings();
+    void onCmakePathChanged();
 
 private:
     /******************************************************************************
@@ -265,7 +288,7 @@ private:
     /******************************************************************************
      * @brief Extracts the project name from a CMakeLists.txt file.
      * @param cmakePath Absolute path to CMakeLists.txt.
-     * @return Project name, or "CodeHelpAI" if not found.
+     * @return Project name, or "DiffCheckAI" if not found.
      ******************************************************************************/
     QString extractProjectNameFromCMake(const QString &cmakePath) const;
 
@@ -302,6 +325,20 @@ private:
      * @return List of relative file paths to check.
      ******************************************************************************/
     QStringList extractCMakeSourceFiles(const QString &cmakeFilePath);
+
+
+    /**************************************************************
+     * @brief Worker thread for status message queue.
+     *************************************************************/
+    void statusQueueWorker();
+
+    /**************************************************************
+     * @brief Shows a colored message on the status bar.
+     * @param message The message to display.
+     * @param timeoutMs The display duration in milliseconds.
+     * @param color The color of the message text.
+     *************************************************************/
+    void showStatusBarMessage(const QString &message, int timeoutMs, const QColor &color);
 
     // ==== Private members ====
     QTabWidget *tabs;                  ///< Main tab widget for all panels.
@@ -359,7 +396,7 @@ private:
     QAction *actCompile;               ///< Action to compile code.
     QAction *actOverwriteWarn;         ///< Action to toggle overwrite warning.
 
-    QSettings settings;                ///< Persistent settings storage.
+    Settings* appSettings;             ///< Persistent settings storage.
     bool overwriteWarn;                ///< Flag for overwrite warning.
     QString originalPath;              ///< Path to original file.
     QString newPath;                   ///< Path to new file.
@@ -369,6 +406,19 @@ private:
     QPushButton *openButton;           ///< Button to open original file.
     QPushButton *openNewButton;        ///< Button to open new file.
 
+    // Status message queue members
+
+    QLabel* colorLabel; ///< For colored status messages
+
+    std::queue<std::tuple<QString, int, QColor>> statusQueue; ///< Message queue: (message, timeout, color)
+    std::mutex statusQueueMutex; ///< Mutex for thread safety
+    std::condition_variable statusQueueCV; ///< Condition variable for queue
+    bool statusQueueStop; ///< Stop flag for worker thread
+    std::thread statusQueueThread; ///< Worker thread
+    size_t statusQueueMaxSize = 10; ///< Maximum queue size
+
+    void importSettings(const QString &filePath);
+    void exportSettings(const QString &filePath);
 };
 
 /*************** End of MainWindow.h ***************************************/

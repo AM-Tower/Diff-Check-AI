@@ -4,15 +4,15 @@
 #
 # @author Jeffrey Scott Flesher with the help of AI: Copilot
 # @version 0.1
-# @date     2025-11-07
+# @date 2025-11-07
 # @section License MIT
 # @section DESCRIPTION
 # Configures CMake build for DiffCheckAI, sets C++ standard,
 # finds Qt6 components, builds executable, installs, and
 # configures deployment and packaging for Windows, macOS, Linux.
 # **************************************************************#
-cmake_minimum_required(VERSION 3.24)
 
+cmake_minimum_required(VERSION 3.24)
 project(DiffCheckAI VERSION 0.1 LANGUAGES CXX)
 
 # =========================
@@ -27,8 +27,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ----------------------------------------------------
-# Detect compiler and set Qt path accordingly
+# Platform-specific flags --------------------------------
 if(MSVC)
     add_compile_options(/Zc:__cplusplus)
     add_compile_options(/permissive-)
@@ -37,10 +36,6 @@ endif()
 if(MINGW)
     add_compile_definitions(QT_DEFAULT_RHI=opengl)
     add_compile_definitions(QT_QPA_PLATFORM=windows)
-endif()
-
-# --- Disable Qt ShaderTools DXC probing on MinGW. Still get warnings. ---
-if(MINGW)
     set(QT_FEATURE_shadercache_dxc OFF CACHE BOOL "Disable DXC shader compiler" FORCE)
     set(QT_FEATURE_d3d12 OFF CACHE BOOL "Disable Direct3D 12 backend" FORCE)
     set(QT_FEATURE_direct3d12 OFF CACHE BOOL "Disable Direct3D 12 backend" FORCE)
@@ -50,7 +45,7 @@ endif()
 # ----------------------------------------------------
 
 # Qt6 components
-find_package(Qt6 6.10 REQUIRED COMPONENTS Core Gui Widgets LinguistTools Network Concurrent Svg)
+find_package(Qt6 6.10 REQUIRED COMPONENTS Core Gui Widgets LinguistTools Network Concurrent Svg Test)
 
 qt_standard_project_setup()
 
@@ -70,9 +65,28 @@ qt_add_executable(DiffCheckAI
     src/MainWindow.h src/MainWindow.cpp
     src/CompareEngine.h src/CompareEngine.cpp
     src/Config.h
+    src/Settings.h src/Settings.cpp
     ${APP_RESOURCES}
     ${QM_FILES}
 )
+
+target_link_libraries(DiffCheckAI PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::Concurrent Qt6::Svg)
+
+target_include_directories(DiffCheckAI PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# Tests
+enable_testing()
+add_executable(test_settings
+    tests/test_settings.cpp
+    src/MainWindow.cpp
+    src/CompareEngine.cpp
+    src/Settings.cpp
+    ${APP_RESOURCES}
+    # Add any other .cpp files MainWindow depends on
+)
+target_include_directories(test_settings PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_settings PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Widgets)
+add_test(NAME TestSettingsTab COMMAND test_settings)
 
 # --- Disable Qt ShaderTools DXC probing on MinGW. Still get warnings. ---
 if(MINGW)
@@ -82,24 +96,9 @@ if(MINGW)
     )
 endif()
 # ----------------------------------------------------
+# Package data folder for QtSettings JSon file.
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/data DESTINATION .)
 
-target_link_libraries(DiffCheckAI PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
-    Qt6::Network
-    Qt6::Concurrent
-    Qt6::Svg
-)
-
-target_include_directories(DiffCheckAI PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-# Install the executable
-install(TARGETS DiffCheckAI DESTINATION bin)
-
-# ----------------------------------------------------
 # Deployment logic
 if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE NAMES windeployqt HINTS "${Qt6_DIR}/../../../bin" ENV PATH)
@@ -121,6 +120,9 @@ elseif(UNIX)
     message(STATUS "✅ Linux build – Qt runtime deployment handled by system packages.")
 endif()
 
+# Install the executable
+install(TARGETS DiffCheckAI DESTINATION bin)
+
 # Packaging with CPack
 include(InstallRequiredSystemLibraries)
 set(CPACK_PACKAGE_NAME "DiffCheckAI")
@@ -132,7 +134,6 @@ set(CPACK_PACKAGE_VERSION_PATCH "0")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_PACKAGE_EXECUTABLES "DiffCheckAI" "DiffCheckAI")
-
 if(WIN32)
     set(CPACK_GENERATOR "NSIS")
     set(CPACK_NSIS_DISPLAY_NAME "DiffCheckAI")
@@ -144,7 +145,6 @@ else()
     set(CPACK_GENERATOR "DEB;RPM")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${PROJECT_MAINTAINER}")
 endif()
-
 include(CPack)
 
 #************** End of CMakeLists.txt **************************#
